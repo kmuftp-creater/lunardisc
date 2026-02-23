@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DISC 人格測驗 - 過年版</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Remix Icon -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                    },
+                    colors: {
+                        cny: {
+                            red: '#e63946',
+                            darkred: '#9a031e',
+                            gold: '#f5cb5c',
+                            darkgold: '#b58900',
+                            bg: '#fdfbf7'
+                        }
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(230, 57, 70, 0.15)',
+                        'card': '0 20px 40px -10px rgba(0,0,0,0.1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- App Logic -->
+    <script>
+        function discApp() {
+            return {
+                screen: 'start', // start, quiz, result
+                currentIndex: 0,
+                answers: [], // 紀錄選擇 A(左) 或 B(右)
+                resultType: 'D', // 預設結果
+                
+                // 滑動物理狀態
+                isDragging: false,
+                hasDragged: false,
+                startX: 0,
+                startY: 0,
+                dragX: 0,
+                dragY: 0,
+                isAnimatingOut: false,
+                leaveX: 0,
+                leaveY: 0,
+
+                questions: [
+                    // 根據 認識DISC.md 重新修正的 20 道情境題 (D, I, S, C 各出現 10 次)
+                    { q: '準備年貨與伴手禮時，你的習慣是...', a: '速戰速決，鎖定目標買完就走，講求效率', b: '仔細比價，確認成分與保存期限，追求完美', typeA: 'D', typeB: 'C' },
+                    { q: '吃年夜飯時，你在飯桌上的狀態通常是...', a: '滔滔不絕分享趣事，熱情炒熱氣氛', b: '默默幫大家夾菜，微笑傾聽大家說話', typeA: 'I', typeB: 'S' },
+                    { q: '家裡大掃除分工時，你的參與模式是...', a: '主動分配任務，要求大家有效率地按時完成', b: '配合大家的時間，挑別人不想做的區域默默打掃', typeA: 'D', typeB: 'S' },
+                    { q: '準備過年要買的春聯或裝飾品，你會挑選...', a: '色彩繽紛、造型浮誇或充滿創意的新奇款式', b: '排版工整、字體講究，符合傳統規範的經典春聯', typeA: 'I', typeB: 'C' },
+                    { q: '面對親戚長輩的「靈魂拷問」（問薪水、感情），你會...', a: '自信且直接地給出答案，主導並結束這個話題', b: '用幽默玩笑輕鬆帶過，逗得長輩哈哈大笑轉移注意力', typeA: 'D', typeB: 'I' },
+                    
+                    { q: '安排全家初二的走春行程，你傾向於...', a: '配合家人想去哪就去哪，大家開心和諧最重要', b: '查好交通路況與營業時間，排出有條理的最佳路線', typeA: 'S', typeB: 'C' },
+                    { q: '拜年時遇到親戚小孩為玩具吵架，你會...', a: '立刻上前制止，果斷規定他們輪流玩的時間', b: '先了解事情始末，客觀分析誰對誰錯再講理', typeA: 'D', typeB: 'C' },
+                    { q: '收到其實不喜歡的過年伴手禮，你的反應是...', a: '表情豐富地誇獎包裝很美，熱情道謝', b: '溫和地微笑道謝收下，默默收進櫃子深處', typeA: 'I', typeB: 'S' },
+                    { q: '規劃自己要發給晚輩的紅包金額時，你會...', a: '根據自己的成就與當下心情，霸氣決定數字', b: '考慮到去年的行情與大家的期待，不想破壞和諧', typeA: 'D', typeB: 'S' },
+                    { q: '朋友群組揪過年晚上打牌或玩桌遊，你會...', a: '第一個喊「加一」，滿腦子想著熱鬧好玩', b: '先問清楚打多大、有誰要來，仔細評估後再決定', typeA: 'I', typeB: 'C' },
+                    
+                    { q: '過年期間家裡臨時來了沒預料到的客人...', a: '迅速指揮家人準備茶水點心，掌控招待流程', b: '立刻衝去門口熱情迎接，馬上跟對方開心聊開', typeA: 'D', typeB: 'I' },
+                    { q: '吃完年夜飯面對一大堆要洗的碗盤，你會...', a: '覺得為了家人辛苦一點沒關係，默默去廚房洗完', b: '把碗盤分類疊好，用最精準有效率的 SOP 洗淨', typeA: 'S', typeB: 'C' },
+                    { q: '去大廟拜拜遇到大塞車，車子卡在半路，你會...', a: '覺得浪費時間，立刻果斷決定改去別的地方', b: '打開導航冷靜分析其他替代道路的時間與距離', typeA: 'D', typeB: 'C' },
+                    { q: '走春拜訪很久沒見的遠房親戚，你的互動方式是...', a: '主動找話題，生動活潑地分享自己的生活點滴', b: '溫和地微笑傾聽親戚說話，適時點頭給予回應', typeA: 'I', typeB: 'S' },
+                    { q: '大家一起玩刮刮樂或打牌，你如果一直輸...', a: '激起強烈勝負慾，決定再買幾張或再打幾圈拼回來', b: '覺得沒關係，過年大家聚在一起開心和諧就好', typeA: 'D', typeB: 'S' },
+                    
+                    { q: '電視上在播報明年的生肖運勢與風水，你會...', a: '覺得很有趣，馬上興奮地跟家人討論自己的運勢', b: '覺得缺乏科學數據，聽聽就好不怎麼相信', typeA: 'I', typeB: 'C' },
+                    { q: '過年要決定全家去哪家餐廳聚餐，你會...', a: '直接選定一家自己覺得最有效率、最棒的餐廳', b: '找幾家氣氛好、適合打卡拍照的餐廳讓大家挑', typeA: 'D', typeB: 'I' },
+                    { q: '整理過年期間收到的壓歲錢或獎金，你的習慣是...', a: '小心地收在熟悉的安全地方，覺得有一筆錢很安心', b: '仔細記帳，邏輯清晰地規劃好哪筆要存、哪筆要花', typeA: 'S', typeB: 'C' },
+                    { q: '面對長輩要求的傳統繁文縟節（如複雜的拜拜規矩），你會...', a: '覺得太沒效率，試圖簡化流程或只做重點', b: '為了不犯錯，會仔細詢問並嚴格遵守每個標準步驟', typeA: 'D', typeB: 'C' },
+                    { q: '九天年假即將結束，你的心態與安排是...', a: '意猶未盡，趕緊約朋友抓住假期的尾巴再出去嗨一波', b: '留一兩天在家安靜休息，調適心情準備回到穩定生活', typeA: 'I', typeB: 'S' }
+                ],
+
+                // 包含基礎型與複合型的結果檔案
+                discData: {
+                    'D': { 
+                        title: '霸氣總指揮', 
+                        en: 'Dominance', 
+                        desc: '【代表人物】孫悟空\n\n【性格特質】你天生帶著王者氣場，決策果斷、目標明確，追求效率與結果，是不折不扣的「閃電決策者」。\n\n【過年樣貌】過年的「霸總大總管」。買年貨速戰速決、安排行程不拖泥帶水。只要遇到塞車或突發狀況，你總能立刻生出備案，帶領全家突破重圍，有你在絕對效率滿分！' 
+                    },
+                    'I': { 
+                        title: '人氣氣氛王', 
+                        en: 'Influence', 
+                        desc: '【代表人物】豬八戒\n\n【性格特質】你活潑開朗、充滿熱情，天生具備強大的社交魅力與感染力，是團體中不可或缺的開心果。\n\n【過年樣貌】守歲與走春的「行動發電機」！玩桌遊、說笑話，只要有你在的地方就充滿笑聲。你能用幽默感瞬間化解長輩的靈魂拷問，讓過年氣氛永遠保持在最高點！' 
+                    },
+                    'S': { 
+                        title: '暖心守護者', 
+                        en: 'Steadiness', 
+                        desc: '【代表人物】沙和尚\n\n【性格特質】你性情溫和、步調穩健，具備極強的耐心與包容力，最看重人際之間的「和諧」與「穩定」。\n\n【過年樣貌】年夜飯的「最強暖心後勤」。總是默默幫大家夾菜、傾聽親戚說話，不爭不搶。雖然你常常安靜地待在角落，但你帶來的穩定與安心感，是全家最珍惜的過年氛圍。' 
+                    },
+                    'C': { 
+                        title: '嚴謹精算師', 
+                        en: 'Compliance', 
+                        desc: '【代表人物】唐三藏\n\n【性格特質】你講求邏輯、重細節且實事求是，凡事追求精確與高品質，是冷靜客觀的「分析決策者」。\n\n【過年樣貌】習俗百科兼「過年 SOP 大師」。從紅包預算的精準控制，到大掃除的完美流程，你不放過任何細節。有你嚴格把關，這個年絕對過得井然有序、完美無瑕！' 
+                    },
+                    'DI': { 
+                        title: '魅力領導者', 
+                        en: 'Dominance & Influence', 
+                        desc: '【複合型特質】支配型 (D) + 影響型 (I)\n\n【性格特質】你完美結合了「果斷魄力」與「社交能力」。既有目標導向的決策力，又有熱情洋溢的感染力。\n\n【過年樣貌】你是過年期間最耀眼的主導者！不僅能火速決定年夜飯吃哪家、行程怎麼排，還能把全家逗得哈哈大笑，讓大家心甘情願跟著你的計畫走。' 
+                    },
+                    'CS': { 
+                        title: '可靠專業人士', 
+                        en: 'Compliance & Steadiness', 
+                        desc: '【複合型特質】謹慎型 (C) + 穩健型 (S)\n\n【性格特質】你結合了「細心謹慎」與「極高穩定性」。做事重品質又顧及團隊合作，是令人無比安心的存在。\n\n【過年樣貌】你是過年最強的幕後功臣！不僅默默把家裡打掃得一塵不染，還能將繁雜的拜拜流程處理得井井有條，不居功卻是全家最依賴的支柱。' 
+                    },
+                    'IS': { 
+                        title: '超強協調者', 
+                        en: 'Influence & Steadiness', 
+                        desc: '【複合型特質】影響型 (I) + 穩健型 (S)\n\n【性格特質】你擁有「熱情開朗」與「溫和穩定」的雙重特質。親和力滿分，最善於傾聽且樂於助人。\n\n【過年樣貌】親戚間的最強潤滑劑！你既能主動開話題讓大家開心，又能在有人被冷落時溫暖地給予關心。無論到哪個親戚家走春，你永遠是最受歡迎的萬人迷。' 
+                    },
+                    'IC': { 
+                        title: '條理專案經理', 
+                        en: 'Influence & Compliance', 
+                        desc: '【複合型特質】影響型 (I) + 謹慎型 (C)\n\n【性格特質】活潑但做事有條理，能在「創新」與「規範」之間取得完美平衡。思維敏捷又不失邏輯。\n\n【過年樣貌】過年娛樂策劃大師！你總能想出最新奇的過年遊戲或走春景點，同時還能把預算、交通等細節規劃得清清楚楚，讓大家玩得盡興又無後顧之憂。' 
+                    },
+                    'DC': { 
+                        title: '精準決策者', 
+                        en: 'Dominance & Compliance', 
+                        desc: '【複合型特質】支配型 (D) + 謹慎型 (C)\n\n【性格特質】結合了「果斷」與「嚴謹」，是精準強勢的決策者。決策快速且基於數據與事實，絕不盲目。\n\n【過年樣貌】你對沒有效率的過年瑣事零容忍！從精準搶到最熱門的車票，到運用導航避開所有走春車潮，你用最理性的分析，讓全家度過一個最有效率的新年。' 
+                    },
+                    'DS': { 
+                        title: '穩健執行者', 
+                        en: 'Dominance & Steadiness', 
+                        desc: '【複合型特質】支配型 (D) + 穩健型 (S)\n\n【性格特質】擁有「果斷方向」與「穩定執行力」。能在快速決策後，一步一腳印地把事情完成。\n\n【過年樣貌】既有主見又願意腳踏實地！你可能是那個拍板決定今年要親自煮年夜飯的人，接著便會默默地、極具耐心地把整桌好菜穩穩端上桌。' 
+                    }
+                },
+
+                initApp() {
+                    document.addEventListener('mousemove', (e) => this.onDrag(e));
+                    document.addEventListener('mouseup', () => this.endDrag());
+                    document.addEventListener('touchmove', (e) => this.onDrag(e), { passive: false });
+                    document.addEventListener('touchend', () => this.endDrag());
+                },
+
+                startQuiz() {
+                    this.screen = 'quiz';
+                    window.scrollTo(0,0);
+                },
+
+                getCardStyle(index) {
+                    if (index === this.currentIndex) {
+                        if (this.isAnimatingOut) {
+                            return `transform: translate(${this.leaveX}px, ${this.leaveY}px) rotate(${this.leaveX / 15}deg); opacity: 0; transition: all 0.4s ease-out;`;
+                        }
+                        if (this.isDragging) {
+                            return `transform: translate(${this.dragX}px, ${this.dragY}px) rotate(${this.dragX / 20}deg); transition: none;`;
+                        }
+                        return `transform: translate(0px, 0px) rotate(0deg); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);`;
+                    } else if (index === this.currentIndex + 1) {
+                        const scale = this.isDragging ? 0.95 + (Math.abs(this.dragX) / 1000) : 0.95;
+                        const finalScale = Math.min(scale, 1);
+                        return `transform: scale(${finalScale}) translateY(15px); opacity: 1; transition: transform 0.3s ease-out;`;
+                    }
+                    return 'display: none;';
+                },
+
+                handleClick(e) {
+                    if (this.isAnimatingOut || this.hasDragged) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    
+                    if (clickX < rect.width / 2) {
+                        this.triggerSwipe('left');
+                    } else {
+                        this.triggerSwipe('right');
+                    }
+                },
+
+                startDrag(e) {
+                    if (this.isAnimatingOut) return;
+                    this.isDragging = true;
+                    this.hasDragged = false;
+                    this.startX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+                    this.startY = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
+                },
+
+                onDrag(e) {
+                    if (!this.isDragging) return;
+                    
+                    const currentX = e.type.includes('mouse') ? e.pageX : e.touches[0].pageX;
+                    const currentY = e.type.includes('mouse') ? e.pageY : e.touches[0].pageY;
+                    
+                    this.dragX = currentX - this.startX;
+                    this.dragY = currentY - this.startY;
+
+                    if (Math.abs(this.dragX) > 5 || Math.abs(this.dragY) > 5) {
+                        this.hasDragged = true;
+                    }
+
+                    if (e.type.includes('touch') && Math.abs(this.dragX) > Math.abs(this.dragY)) {
+                        e.preventDefault();
+                    }
+                },
+
+                endDrag() {
+                    if (!this.isDragging) return;
+                    this.isDragging = false;
+                    
+                    const threshold = window.innerWidth * 0.25;
+                    
+                    if (this.dragX > threshold) {
+                        this.triggerSwipe('right');
+                    } else if (this.dragX < -threshold) {
+                        this.triggerSwipe('left');
+                    } else {
+                        this.dragX = 0;
+                        this.dragY = 0;
+                    }
+                },
+
+                triggerSwipe(direction) {
+                    this.isAnimatingOut = true;
+                    this.leaveX = direction === 'left' ? -window.innerWidth : window.innerWidth;
+                    this.leaveY = this.dragY + (Math.random() * 100 - 50);
+                    
+                    this.answers[this.currentIndex] = direction === 'left' ? 'A' : 'B';
+
+                    setTimeout(() => {
+                        this.nextQuestion();
+                    }, 300);
+                },
+
+                nextQuestion() {
+                    this.isAnimatingOut = false;
+                    this.dragX = 0;
+                    this.dragY = 0;
+                    this.leaveX = 0;
+                    this.leaveY = 0;
+                    
+                    if (this.currentIndex < 19) {
+                        this.currentIndex++;
+                    } else {
+                        this.calculateResult();
+                    }
+                },
+
+                prevQuestion() {
+                    if (this.currentIndex > 0) {
+                        this.currentIndex--;
+                        this.dragX = 0;
+                        this.dragY = 0;
+                    }
+                },
+
+                calculateResult() {
+                    let scores = { D: 0, I: 0, S: 0, C: 0 };
+                    
+                    // 計算分數
+                    this.answers.forEach((ans, idx) => {
+                        const q = this.questions[idx];
+                        if (ans === 'A') scores[q.typeA]++;
+                        else if (ans === 'B') scores[q.typeB]++;
+                    });
+
+                    // 排序分數找出第一與第二名
+                    let sortedTypes = Object.keys(scores).sort((a, b) => scores[b] - scores[a]);
+                    let primary = sortedTypes[0];
+                    let secondary = sortedTypes[1];
+
+                    let finalType = primary;
+
+                    // 複合型判定邏輯：若第二高分大於等於 5 分，且與第一高分差距在 2 分以內
+                    if (scores[secondary] >= 5 && (scores[primary] - scores[secondary]) <= 2) {
+                        finalType = primary + secondary;
+                    }
+
+                    // 對應字典 (將反向的組合轉為標準組合名稱)
+                    const typeMap = {
+                        'ID': 'DI', 'SC': 'CS', 'SI': 'IS', 'CI': 'IC', 'CD': 'DC', 'SD': 'DS'
+                    };
+                    
+                    if (typeMap[finalType]) {
+                        finalType = typeMap[finalType];
+                    }
+
+                    this.resultType = finalType;
+                    this.screen = 'result';
+                    
+                    this.$nextTick(() => {
+                        this.fireConfetti();
+                    });
+                },
+
+                fireConfetti() {
+                    var duration = 3000;
+                    var end = Date.now() + duration;
+
+                    (function frame() {
+                        confetti({
+                            particleCount: 5,
+                            angle: 60,
+                            spread: 55,
+                            origin: { x: 0 },
+                            colors: ['#e63946', '#f5cb5c', '#ffffff']
+                        });
+                        confetti({
+                            particleCount: 5,
+                            angle: 120,
+                            spread: 55,
+                            origin: { x: 1 },
+                            colors: ['#e63946', '#f5cb5c', '#ffffff']
+                        });
+
+                        if (Date.now() < end) {
+                            requestAnimationFrame(frame);
+                        }
+                    }());
+                },
+
+                shareResult() {
+                    const text = `🎉 我的過年 DISC 人格是【${this.discData[this.resultType].title}】！\n快來測測你的專屬過年複合人格 👉`;
+                    if (navigator.share) {
+                        navigator.share({
+                            title: 'DISC 人格測驗 - 過年版',
+                            text: text,
+                            url: window.location.href
+                        }).catch(console.error);
+                    } else {
+                        navigator.clipboard.writeText(text + ' ' + window.location.href).then(() => {
+                            alert('結果已複製到剪貼簿！可以去貼給朋友囉～');
+                        });
+                    }
+                },
+
+                resetQuiz() {
+                    this.currentIndex = 0;
+                    this.answers = [];
+                    this.screen = 'start';
+                    window.scrollTo(0,0);
+                }
+            }
+        }
+    </script>
+
+    <!-- Alpine.js -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            background-color: #fdfbf7;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(230, 57, 70, 0.05), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(245, 203, 92, 0.08), transparent 25%);
+            overflow-x: hidden;
+            touch-action: pan-y;
+        }
+
+        .bg-ornament {
+            position: fixed;
+            z-index: -1;
+            opacity: 0.15;
+            user-select: none;
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(5deg); }
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: var(--tw-shadow-glass);
+        }
+
+        .card-stack {
+            position: relative;
+            width: 100%;
+            max-width: 380px;
+            height: 480px;
+            margin: 0 auto;
+            perspective: 1000px;
+        }
+
+        .swipe-card {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: white;
+            border-radius: 1.5rem;
+            box-shadow: var(--tw-shadow-card);
+            border: 2px solid #fff;
+            display: flex;
+            flex-direction: column;
+            transform-origin: 50% 100%;
+            will-change: transform, opacity;
+            touch-action: none; 
+            user-select: none;
+        }
+
+        .text-gradient-gold {
+            background: linear-gradient(135deg, #b58900 0%, #f5cb5c 50%, #b58900 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        [x-cloak] { display: none !important; }
+        
+        .option-badge {
+            transition: all 0.2s ease;
+        }
+        .option-badge:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 antialiased font-sans selection:bg-cny-gold selection:text-white" x-data="discApp()" x-init="initApp()">
+
+    <!-- 背景浮動裝飾 -->
+    <div class="bg-ornament text-6xl" style="top: 10%; left: 5%; animation-delay: 0s;">🧧</div>
+    <div class="bg-ornament text-5xl" style="top: 20%; right: 8%; animation-delay: 1s;">🏮</div>
+    <div class="bg-ornament text-6xl" style="bottom: 15%; left: 10%; animation-delay: 2s;">🍊</div>
+    <div class="bg-ornament text-5xl" style="bottom: 25%; right: 5%; animation-delay: 1.5s;">🧨</div>
+
+    <main class="max-w-md mx-auto min-h-screen flex flex-col px-4 py-8 relative z-10">
+        
+        <!-- ================= 開始畫面 ================= -->
+        <div x-show="screen === 'start'" x-transition.opacity.duration.500ms class="flex-1 flex flex-col justify-center items-center">
+            <div class="glass-panel rounded-3xl p-8 w-full text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-cny-red via-cny-gold to-cny-red"></div>
+                
+                <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-red-50 text-cny-red text-4xl mb-6 shadow-inner relative">
+                    <span class="absolute inset-0 border-4 border-cny-red rounded-full opacity-20 animate-ping"></span>
+                    <i class="ri-fire-fill"></i>
+                </div>
+                
+                <h1 class="text-4xl font-black mb-2 text-gray-900 tracking-tight">DISC 人格測驗</h1>
+                <h2 class="text-2xl font-bold text-cny-darkgold mb-6">🏮 過年限定版 🏮</h2>
+                
+                <p class="text-gray-600 mb-8 leading-relaxed">
+                    透過 <b class="text-cny-red">20 道情境題</b>，<br>
+                    發掘你的單一或 <b class="text-cny-gold">複合型</b> 專屬新年人格！
+                </p>
+
+                <button @click="startQuiz()" 
+                        class="w-full bg-gradient-to-r from-cny-red to-cny-darkred text-white py-4 rounded-2xl text-xl font-bold shadow-lg shadow-red-500/30 hover:shadow-red-500/50 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2">
+                    <i class="ri-play-circle-fill text-2xl"></i> 立即開始測驗
+                </button>
+                <p class="text-xs text-gray-400 mt-4">測驗時間約 3 分鐘</p>
+            </div>
+        </div>
+
+        <!-- ================= 測驗畫面 ================= -->
+        <div x-show="screen === 'quiz'" x-cloak class="flex-1 flex flex-col">
+            
+            <div class="mb-8 mt-4">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-sm font-bold text-gray-500">問題 <span class="text-cny-red text-lg" x-text="currentIndex + 1"></span> / 20</span>
+                    <span class="text-sm font-bold text-cny-darkgold" x-text="Math.round(((currentIndex) / 20) * 100) + '%'"></span>
+                </div>
+                <div class="h-3 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div class="h-full bg-gradient-to-r from-cny-gold to-cny-red transition-all duration-500 ease-out"
+                         :style="`width: ${((currentIndex) / 20) * 100}%`"></div>
+                </div>
+            </div>
+
+            <div class="card-stack flex-1" id="card-container">
+                <template x-for="(q, index) in questions" :key="index">
+                    <div x-show="index === currentIndex || index === currentIndex + 1"
+                         class="swipe-card p-6 flex flex-col cursor-pointer"
+                         :class="{ 'z-20': index === currentIndex, 'z-10': index === currentIndex + 1 }"
+                         :style="getCardStyle(index)"
+                         @mousedown="index === currentIndex && startDrag($event)"
+                         @touchstart="index === currentIndex && startDrag($event)"
+                         @click="index === currentIndex && handleClick($event)">
+                        
+                        <div class="flex-1 flex flex-col justify-center relative pointer-events-none">
+                            <div class="absolute top-0 left-0 w-full flex justify-between px-4 opacity-0 transition-opacity duration-200"
+                                 :style="index === currentIndex ? `opacity: ${Math.min(Math.abs(dragX) / 100, 1)}` : ''">
+                                <span class="text-2xl font-black text-cny-red border-4 border-cny-red rounded-xl px-4 py-1 transform -rotate-12"
+                                      x-show="dragX < 0">選 A</span>
+                                <span class="text-2xl font-black text-green-500 border-4 border-green-500 rounded-xl px-4 py-1 transform rotate-12"
+                                      x-show="dragX > 0">選 B</span>
+                            </div>
+
+                            <div class="text-center mb-8">
+                                <div class="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-sm border border-red-100">
+                                    🧧
+                                </div>
+                                <h3 class="text-xl md:text-2xl font-bold text-gray-800 leading-snug" x-text="q.q"></h3>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 pointer-events-none mb-4">
+                            <div class="p-4 rounded-xl border-2 border-red-100 bg-red-50/50 flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-white border-2 border-cny-red text-cny-red flex items-center justify-center font-bold text-sm shrink-0 shadow-sm"><i class="ri-arrow-left-line"></i></div>
+                                <span class="text-sm font-medium text-gray-700 leading-tight" x-text="q.a"></span>
+                            </div>
+                            <div class="p-4 rounded-xl border-2 border-green-100 bg-green-50/50 flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-white border-2 border-green-500 text-green-500 flex items-center justify-center font-bold text-sm shrink-0 shadow-sm"><i class="ri-arrow-right-line"></i></div>
+                                <span class="text-sm font-medium text-gray-700 leading-tight" x-text="q.b"></span>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="mt-4 flex flex-col items-center justify-center gap-3 mb-4 min-h-[40px]">
+                <button @click="prevQuestion()" x-show="currentIndex > 0" x-transition.opacity class="text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-2 px-4 py-2 rounded-full hover:bg-gray-200/50 font-bold text-sm">
+                    <i class="ri-arrow-go-back-line text-lg"></i> 返回上一題
+                </button>
+            </div>
+            <p class="text-center text-gray-400 text-xs mb-4">向左/右滑動，或直接點選卡片左/右側選題</p>
+
+        </div>
+
+        <!-- ================= 結果畫面 ================= -->
+        <div x-show="screen === 'result'" x-cloak x-transition.opacity.duration.800ms class="flex-1 flex flex-col items-center justify-center py-4">
+            
+            <h3 class="text-xl font-bold text-gray-500 mb-2">專屬於你的過年人格是...</h3>
+            
+            <div class="w-full bg-white rounded-3xl shadow-card overflow-hidden mb-8 border border-gray-100 relative group">
+                <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-cny-gold to-cny-red opacity-10"></div>
+                
+                <div class="p-8 text-center relative z-10">
+                    <div class="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-cny-red to-cny-darkred text-white flex items-center justify-center text-4xl font-black mb-4 shadow-lg border-4 border-white tracking-tighter">
+                        <span x-text="resultType"></span>
+                    </div>
+                    
+                    <h1 class="text-3xl font-black text-gray-900 mb-1" x-text="discData[resultType]?.title"></h1>
+                    <p class="text-sm font-bold text-cny-darkgold mb-6 uppercase tracking-widest" x-text="discData[resultType]?.en"></p>
+                    
+                    <div class="bg-orange-50 rounded-2xl p-6 text-left relative">
+                        <i class="ri-double-quotes-l text-4xl absolute -top-3 -left-2 text-orange-200"></i>
+                        <div class="text-gray-700 leading-relaxed text-sm md:text-base relative z-10 whitespace-pre-wrap" x-text="discData[resultType]?.desc"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full space-y-3">
+                <button @click="shareResult()" class="w-full bg-gray-900 text-white py-4 rounded-2xl text-lg font-bold shadow-lg hover:bg-gray-800 transition-colors flex justify-center items-center gap-2">
+                    <i class="ri-share-forward-fill"></i> 分享測驗結果
+                </button>
+                <button @click="resetQuiz()" class="w-full bg-white text-gray-600 border-2 border-gray-200 py-4 rounded-2xl text-lg font-bold hover:bg-gray-50 transition-colors flex justify-center items-center gap-2">
+                    <i class="ri-refresh-line"></i> 再測一次
+                </button>
+            </div>
+        </div>
+
+        <!-- 頁尾 -->
+        <footer class="mt-auto pt-8 text-center text-xs text-gray-400 relative z-10 pb-4">
+            <p>僅供娛樂參考，祝您新年快樂！🧧</p>
+            <p class="mt-2 text-gray-500">v0.0.3 &copy; 2026 <a href="https://huobest.com/" target="_blank" class="text-cny-red font-medium hover:underline">霍家私塾</a></p>
+        </footer>
+
+    </main>
+</body>
+</html>
